@@ -83,7 +83,7 @@ def get_ivar_info(obj, ivar):
     def get_offset(ivar):
         class_name, ivar_name = ivar.split('.')
         frame = obj.GetThread().GetSelectedFrame()
-        ptr = frame.EvaluateExpression("&(({} *)0)->{}".format(class_name, ivar_name))
+        ptr = frame.EvaluateExpression("&(({0} *)0)->{1}".format(class_name, ivar_name))
         return (ptr.GetValueAsUnsigned(), ptr.deref.type, ptr.deref.size)
 
     return cache_lookup(ivar_cache, ivar, get_offset)
@@ -147,7 +147,7 @@ class RLMObject_SyntheticChildrenProvider(SyntheticChildrenProvider):
             properties = self._get_ivar(object_schema, 'RLMObjectSchema._properties')
             if not properties:
                 return None
-            count = self._eval("(NSUInteger)[((NSArray *){}) count]".format(properties)).GetValueAsUnsigned()
+            count = self._eval("(NSUInteger)[((NSArray *){0}) count]".format(properties)).GetValueAsUnsigned()
             return [self._get_prop(properties, i) for i in range(count)]
 
         self.props = cache_lookup(schema_cache, object_schema, get_schema)
@@ -179,17 +179,17 @@ class RLMObject_SyntheticChildrenProvider(SyntheticChildrenProvider):
         pass
 
     def _get_prop(self, props, i):
-        prop = self._eval("(NSUInteger)[((NSArray *){}) objectAtIndex:{}]".format(props, i)).GetValueAsUnsigned()
-        name = self._to_str(self._eval('[(NSString *){} UTF8String]'.format(self._get_ivar(prop, "RLMProperty._name"))).GetValueAsUnsigned())
+        prop = self._eval("(NSUInteger)[((NSArray *){0}) objectAtIndex:{1}]".format(props, i)).GetValueAsUnsigned()
+        name = self._to_str(self._eval('[(NSString *){0} UTF8String]'.format(self._get_ivar(prop, "RLMProperty._name"))).GetValueAsUnsigned())
         type = self._get_ivar(prop, 'RLMProperty._type')
-        getter = "({})[(id){} {}]".format(property_types.get(type, 'id'), self.obj.GetAddress(), name)
+        getter = "({0})[(id){1} {2}]".format(property_types.get(type, 'id'), self.obj.GetAddress(), name)
         return name, getter
 
 class_name_cache = {}
 def get_object_class_name(frame, obj, addr, ivar):
     class_name_ptr = get_ivar(obj, addr, ivar)
     def get_class_name(ptr):
-        utf8_addr = frame.EvaluateExpression('(const char *)[(NSString *){} UTF8String]'.format(class_name_ptr)).GetValueAsUnsigned()
+        utf8_addr = frame.EvaluateExpression('(const char *)[(NSString *){0} UTF8String]'.format(class_name_ptr)).GetValueAsUnsigned()
         return obj.GetProcess().ReadCStringFromMemory(utf8_addr, 1024, lldb.SBError())
 
     return cache_lookup(class_name_cache, class_name_ptr, get_class_name)
@@ -197,8 +197,8 @@ def get_object_class_name(frame, obj, addr, ivar):
 def RLMArray_SummaryProvider(obj, _):
     frame = obj.GetThread().GetSelectedFrame()
     class_name = get_object_class_name(frame, obj, obj.GetAddress(), 'RLMArray._objectClassName')
-    count = frame.EvaluateExpression('(NSUInteger)[(RLMArray *){} count]'.format(obj.GetAddress())).GetValueAsUnsigned()
-    return "({}[{}])".format(class_name, count)
+    count = frame.EvaluateExpression('(NSUInteger)[(RLMArray *){0} count]'.format(obj.GetAddress())).GetValueAsUnsigned()
+    return "({0}[{1}])".format(class_name, count)
 
 def RLMResults_SummaryProvider(obj, _):
     frame = obj.GetThread().GetSelectedFrame()
@@ -209,8 +209,8 @@ def RLMResults_SummaryProvider(obj, _):
     if not view_created:
         return 'Unevaluated query on ' + class_name
 
-    count = frame.EvaluateExpression('(NSUInteger)[(RLMResults *){} count]'.format(obj.GetAddress())).GetValueAsUnsigned()
-    return "({}[{}])".format(class_name, count)
+    count = frame.EvaluateExpression('(NSUInteger)[(RLMResults *){0} count]'.format(obj.GetAddress())).GetValueAsUnsigned()
+    return "({0}[{1}])".format(class_name, count)
 
 class RLMArray_SyntheticChildrenProvider(SyntheticChildrenProvider):
     def __init__(self, valobj, _):
@@ -219,7 +219,7 @@ class RLMArray_SyntheticChildrenProvider(SyntheticChildrenProvider):
 
     def num_children(self):
         if not self.count:
-            self.count = self._eval("(NSUInteger)[(RLMArray *){} count]".format(self.addr)).GetValueAsUnsigned()
+            self.count = self._eval("(NSUInteger)[(RLMArray *){0} count]".format(self.addr)).GetValueAsUnsigned()
         return self.count + 1
 
     def has_children(self):
@@ -235,7 +235,7 @@ class RLMArray_SyntheticChildrenProvider(SyntheticChildrenProvider):
     def get_child_at_index(self, index):
         if index == 0:
             return self._value_from_ivar('realm')
-        value = self._eval('(id)[(id){} objectAtIndex:{}]'.format(self.addr, index - 1))
+        value = self._eval('(id)[(id){0} objectAtIndex:{1}]'.format(self.addr, index - 1))
         return self.obj.CreateValueFromData('[' + str(index - 1) + ']', value.GetData(), value.GetType())
 
     def update(self):
